@@ -1,0 +1,20 @@
+---
+title: "Day2_rmarkdown"
+author: "Marina e."
+date: "9/15/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: yeti
+    highlight: haddock
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+

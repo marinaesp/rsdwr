@@ -1,0 +1,398 @@
+---
+title: "Day1_introduciton"
+author: "Marina e."
+date: "9/14/2020"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: yeti
+    highlight: haddock
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading the data and libraries
+```{r}
+library(tidyverse)
+```
+
+```{r}
+blp_df <- read_csv("~/github/rsdwr/data/blp-trials-short.txt")
+```
+Glimpse is a part of dplyr: it offers another view of a dataframe.
+```{r}
+glimpse(blp_df, n=50)
+```
+
+# Dplyr verbs
+## Select
+```{r}
+blp_prep <- select(blp_df, participant, lex, resp, rt)
+glimpse(blp_prep)
+```
+
+other ways of selecting variables:
+```{r}
+select(blp_df, spell:prev.rt)
+select(blp_df, 3:5)
+select(blp_df, participant, 4:6)
+select(blp_df, starts_with("p"))
+select(blp_df, ends_with("ll"))
+select(blp_df, contains("sp"))
+#if i want "rt" at the beggining of the word - use regex!
+select(blp_df, matches("^rt"))
+select(blp_df, matches("rt$"))
+select(blp_df, matches("^rt|rt$"))
+select(blp_df, matches("var[0-9]+$"))#starts with var and ends with numeric value
+```
+## Deselecting variables
+```{r}
+select(blp_df, -participant)
+select(blp_df, -ends_with("t"))
+select(blp_df, -c(2:5))
+```
+## Reoredering
+if we want that the df starts with rt variable.
+```{r}
+select(blp_df, rt, everything())
+```
+Select based on condition:
+```{r}
+select_if(blp_df, is.numeric)
+```
+```{r}
+has_low_mean <- function(x){
+  is.numeric(x) && (mean(x, na.rm=T) < 700)
+}
+```
+
+```{r}
+select_if(blp_df, is.numeric)
+select_if(blp_df, has_low_mean)
+select_if(blp_df, ~is.numeric(.))#using purrr style
+```
+## Renaming variables:
+```{r}
+select(blp_df, participant, reaction_time = rt)
+```
+Otherwise, use `rename` verb for renaming the variables.
+
+```{r}
+rename_all(blp_df, ~ str_replace_all(., patter = "\\.", replacement = "_") )#we escape . because regex understands it as any character
+```
+Renaming only some of the variables, based on the condition, you can use any conditions, also based on character string matches.
+```{r}
+rename_at(blp_df, 
+          vars(matches("^rt|rt$" )),
+          ~ str_replace_all(., pattern = "rt", replacement = "reactiontime"))
+```
+```{r}
+rename_at(blp_df, 
+          vars(starts_with("p")),
+          ~ str_replace_all(., pattern = "rt", replacement = "reactiontime"))
+
+rename_at(blp_df, 
+          vars(rt,spell,resp),
+          ~ str_replace_all(., pattern = "rt", replacement = "reactiontime"))
+
+
+rename_if(blp_df, 
+          is.character,
+          str_to_upper) #here str to upper is a function name not a function call! so
+#we dont need ~and (.). 
+```
+## Slice and filter
+Here we will be selecting based on rows, not on the columns.
+Slice selects rows by their indicies.
+```{r}
+c(2,17,37)
+slice(blp_df, c(2,17,37))
+slice(blp_df, 10:20)
+slice(blp_df, seq(10,500,by =  50))
+```
+if you use negative with slice, you get the inverse (everything other than in the condition)
+```{r}
+slice(blp_df, -seq(10,500,by =  50))
+slice(blp_df, -(5:10)) #this is very useful to remove the first rows, which are often just junk!
+slice(blp_df, (nrow(blp_df)-3):nrow(blp_df))#too verbose!
+slice(blp_df, (n()-3):n()) #n() - number of rows in the df that is being operated on.
+```
+### Filter
+```{r}
+filter(blp_df, lex == "W")# == is the assignment operator in R.
+```
+Using multiple conditions
+```{r}
+filter(blp_df, lex == "W", resp == "W", rt < 500)# commas here means #and#
+filter(blp_df, lex == "W" & resp == "W"& rt < 500)
+filter(blp_df, lex == "W"| resp == "W")#either one or another equal to W.
+```
+Other examples
+```{r}
+x <- c(2,3,4,6)
+#is nubmer 4 in this set?
+4 %in% x#TRUE
+```
+Return all the rows where spell is any of ...
+```{r}
+filter(blp_df,rt %in% 500:600)#where rt is between 500 and 600.
+```
+Complex conditions:
+```{r}
+filter(blp_df,
+lex == 'W',
+str_length(spell) < 5 & (resp != lex | rt.raw > 900))
+```
+Filtering NAs: all the rows that do have NAs.
+```{r}
+filter_all(blp_df, any_vars(is.na(.)))
+#the opposite
+filter_all(blp_df, any_vars(!is.na(.)))
+```
+But if you just get rid of NA, use base R function such as:
+na.omit(df)
+
+Filter at:
+when selected variables are greater than 500
+```{r}
+filter_at(blp_df,
+          vars(rt:rt.raw),
+          all_vars(.> 1000)#the dot is the variables being selected on a particular row.
+          )
+```
+```{r}
+filter_at(blp_df,
+          vars(rt:rt.raw),
+          all_vars(.> median(., na.rm=T))#the dot is the variables being selected on a particular row.
+          )
+```
+```{r}
+filter_if(blp_df,
+          is.numeric,
+          all_vars(. > median(., na.rm=T)))
+```
+# Mutate
+Creating new variables or modifying the old ones
+```{r}
+mutate(blp_df,
+       accurate = lex == resp)#accurate is a logical vector
+```
+```{r}
+mutate(blp_df,
+       accurate = lex == resp,
+       string_length = str_length(spell))
+```
+Rescaling the variables with mutate
+Here, all variables would be convert to character/as.factor.
+```{r}
+mutate_all(blp_df,
+           as.character)
+```
+
+NB! vars( ) is used with mutate_at, 
+mutate_if you don't need vars() you can jsut as "is.numeric".
+```{r}
+mutate_at(blp_df,
+          vars(rt:rt.raw),
+          scale)
+
+#use the following, if scale returns a matrix and not vector.
+mutate_at(blp_df,
+          vars(rt:rt.raw),
+          ~ as.vector(scale(.)))
+
+#this will not work!
+mutate_if(blp_df, 
+          vars(is.numeric) #mutate_if do not take vars() as argument
+          ~as.vector(scale))
+```
+```{r}
+mutate(blp_df,
+       is_fast = ifelse(rt.raw < 700,
+                        "fast",
+                       "slow")
+)
+```
+Using the recode function to do a similar thing
+```{r}
+mutate(blp_df,
+       lex = recode(lex,"W" = "word", "N" = "noword")) #old value = new value, not like in rename!
+```
+
+mutate with case_when - be careful to include all the variables!
+```{r}
+mutate(blp_df,
+prev.rt = case_when(
+  prev.rt < 500 ~ 'fast', 
+  prev.rt > 1500 ~ 'slow', 
+  TRUE ~ 'medium'
+) )
+```
+# Arrange verb - for sorting
+```{r}
+arrange(blp_df,
+        participant,
+        rt.raw)
+```
+```{r}
+arrange(blp_df,
+        desc(rt.raw))
+```
+# Summarize verbs
+Summarize with summary statistics,
+summarize will return a tibble, and tibble outputs a truncated value without decimals. If you do need to see the decimals, change the options.
+This is a session-specific setting
+```{r}
+options(pillar.sigfic = 3)
+```
+
+```{r}
+summarize(blp_df,
+          mean(rt.raw, na.rm = T))
+```
+
+to give variable a name:
+```{r}
+summarize(blp_df,
+         avg = mean(rt.raw, na.rm = T),
+         median = median(rt.raw, na.rm = T))
+```
+
+Scoped version of summarize - if , at, all
+Return unique values for each variable
+```{r}
+summarize_all(blp_df, n_distinct)
+```
+
+```{r}
+summarise_at(
+  blp_df,
+  vars(rt:rt.raw),
+  list(
+    ~ median(., na.rm = T),
+    ~ mean(., na.rm = T),
+    ~ sd(., na.rm = T)
+  )
+)
+```
+
+Summarize_if summarizes based on TRUE -FALSE of a condition
+```{r}
+summarize_if(
+  blp_df,
+  is.numeric,
+  list(
+    ~ median(., na.rm = T),
+    ~ mean(., na.rm = T),
+    ~ sd(., na.rm = T)
+  )
+)
+```
+# Group_by and pipes
+Grouping by participants, as an example.
+Looks like the original dataframe, but there are now 78 groups, implicitly.
+```{r}
+group_by(blp_df, participant)
+```
+```{r}
+summarize(group_by(blp_df,participant),
+         avg = mean(rt.raw, na.rm = T),
+         median = median(rt.raw, na.rm = T))
+```
+
+```{r}
+group_by(blp_df,participant, lex) %>% 
+summarize(
+         avg = mean(rt.raw, na.rm = T),
+         median = median(rt.raw, na.rm = T),
+         stdev = sd(rt.raw, na.rm = T))
+```
+```{r}
+blp_df %>%
+  mutate(
+    accuracy = lex == resp,
+    string_length = str_length(spell)
+  ) %>%
+  select(string_length, accuracy, starts_with("rt")
+  ) %>% 
+  group_by(string_length) %>% 
+  summarise(avg_rt = mean(rt.raw, na.rm = T),
+          avg_accuracy = mean(accuracy, na.rm = T))
+ 
+```
+# Combining data frames
+
+```{r}
+Df_1 <- tibble(x = c(1, 2, 3),
+              y = c(2, 7, 1), 
+              z = c(0, 2, 7))
+Df_2 <- tibble(y = c(5, 7), 
+               z = c(6, 7), 
+               x = c(1, 2))
+Df_3 <- tibble(a = c(5, 6, 1), 
+               b = c('a', 'b', 'c'),
+                     c = c(T, T, F))
+```
+
+```{r}
+bind_rows(Df_1, Df_2)
+```
+```{r}
+bind_cols(Df_1,Df_3)
+```
+# Joining df with dplyr
+```{r}
+stimuli <- read_csv('../data/blp_stimuli.csv')
+```
+
+We want to merge this information with blp_df.
+The inner_join goes though both dfs and finds a common variable, here - spell. Only the matching rows are kept by inner_join.
+```{r}
+inner_join(blp_df, stimuli)
+```
+```{r}
+Df_a <- tibble(x = c(1, 2, 3), 
+               y = c('a', 'b', 'c'))
+
+Df_b <- tibble(x = c(2, 3, 4), 
+               z = c('d', 'e', 'f'))
+```
+
+```{r}
+inner_join(Df_a, Df_b)
+```
+
+Left_join will keep all the values on the df on the left!
+```{r}
+left_join(Df_a, Df_b)
+```
+right_join will preserve all the values of the df on the right.
+```{r}
+right_join(Df_a, Df_b)
+```
+
+full_join does right and left join at the same time:
+```{r}
+full_join(Df_a, Df_b)
+```
+When names of the variables are different
+```{r}
+Df_4 <- tibble(x = c(1, 2, 3),
+               y = c(2, 7, 1),
+               z = c(0, 2, 7))
+Df_5 <- tibble(a = c(1, 1, 7),  
+               b = c(2, 3, 7),
+               c = c('a', 'b', 'c'))
+```
+
+```{r}
+inner_join(Df_4, Df_5, by = c("x" = "a", "y" = "b"))
+inner_join(Df_4, Df_5, by = c("x" = "a"))
+```
+
