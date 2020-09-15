@@ -1,0 +1,81 @@
+---
+title: "day2_testing_rmarkdown"
+author: "Marina"
+date: "9/15/2020"
+output: pdf_document
+header-includes:
+- \usepackage{float}
+- \usepackage{booktabs}
+bibliography: myrefs.bib
+#csl: csl.file.name
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE)
+```
+
+# Figures in rmarkdown
+```{r}
+library(tidyverse)
+library(pander)
+library(knitr)
+library(kableExtra)
+```
+
+
+Adjusting figure size
+```{r, fig.width=3, fig.asp = 1/2, fig.align="center"}
+ggplot(data =cars, aes(x = speed,
+  y = dist)
+  ) + geom_point()
+```
+Rescaling the figure
+```{r scatterplot, out.width="0.67\\textwidth", fig.align="center", fig.cap = "This is a scatterplot"}
+ggplot(data =cars, aes(x = speed,
+  y = dist)
+  ) + geom_point()
+```
+
+As we see in fig \ref{fig:scatterplot}
+
+$$
+\begin{aligned}
+y_i = \sum_i^n(X_i)
+\end{aligned}
+$$
+Check out also the tikz package for Latex.
+
+# Tables in rmarkdown
+## Pander
+
+```{r}
+model <- lm(speed ~ dist, data = cars)
+pander(summary(model)$coefficients, digits = 3)
+```
+$p \ll 0.001$
+
+
+## Kable
+Coefficients
+```{r, echo=T}
+kable(summary(model)$coefficients)
+
+```
+
+```{r, eval=F}
+# DT::datatable(summary(model)$coefficients)
+```
+
+```{r}
+kable(summary(model)$coefficients,
+      format = "latex",
+      digits = 2,
+      booktabs = T) %>% 
+  kable_styling(position = "center")
+```
+
+## Using bibliopgraphy
+As was shown by [@levy1994chaos], chaos theory.
+
+
